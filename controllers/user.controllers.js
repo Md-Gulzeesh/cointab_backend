@@ -22,54 +22,48 @@ const deleteUsers = async () => {
 
 const getUsers = async (filters) => {
   try {
-    let page = Number(filters.page) || 1;
-    let pageLimit = Number(filters.limit) || 10;
-    let name = filters.name || "";
-    let age = filters.age;
-    let lowerAgeLimit = 100;
-    let greaterAgeLimit = 0;
-    let country = filters.country || "";
-    let sort = filters.sort || "";
-    let sortObject = { "name.first": "" };
-    let gender = filters.gender || "";
-    if (age == "b20") {
-      lowerAgeLimit = 20;
-      greaterAgeLimit = 0;
-    } else if (age == "m20_b40") {
-      lowerAgeLimit = 40;
-      greaterAgeLimit = 20;
-    } else if (age == "m40") {
-      lowerAgeLimit = 100;
-      greaterAgeLimit = 40;
-    } else if (sort == "asc") {
-      sortObject = { ...sortObject, "name.first": 1 };
-    } else if (sort == "desc") {
-      sortObject = { ...sortObject, "name.first": -1 };
-    } else {
-      sortObject = { "name.first": "" };
-      lowerAgeLimit = 100;
-      greaterAgeLimit = 0;
+    const { name, country, age, gender, sort,page } = filters;
+    // console.log(name, country, age, gender, sort,page);
+    const query = {};
+    const sortQuery = {};
+    if (name) {
+      query["name.first"] = { $regex: name, $options: "i" };
     }
-    console.log(filters);
-    let data = await UserModel.find({
-      "name.first": { $regex: name, $options: "i" },
-      "location.country": { $regex: country, $options: "i" },
-      gender: { $regex: gender, $options: "i" },
-      $and: [{ "dob.age": { $gte: greaterAgeLimit, $lte: lowerAgeLimit } }],
-    })
-      .limit(10)
-      .skip((page - 1) * pageLimit)
-      .sort(sortObject);
-    let tempdata = await UserModel.find({
-      "name.first": { $regex: name, $options: "i" },
-      "location.country": { $regex: country, $options: "i" },
-      gender: { $regex: gender, $options: "i" },
-      $and: [{ "dob.age": { $gte: greaterAgeLimit, $lte: lowerAgeLimit } }],
-    });
-    let totalPages = Math.ceil(tempdata.length / pageLimit);
+    if (country) {
+      query["location.country"] = { $regex: country, $options: "i" };
+    }
+    if (age) {
+      if (age == "b20") {
+        query["$and"] = [{ "dob.age": { $gte: 0, $lte: 20 } }];
+      } else if (age == "m20_b40") {
+        query["$and"] = [{ "dob.age": { $gte: 20, $lte: 40 } }];
+      } else if (age == "b40") {
+        query["$and"] = [{ "dob.age": { $gte: 0, $lte: 40 } }];
+      } else {
+        query["$and"] = [{ "dob.age": { $gte: 0, $lte: 100 } }];
+      }
+    }
+    if (gender) {
+      if (gender.toLowerCase() == "male") {
+        query["gender"] = gender.toLowerCase();
+      } else if (gender.toLowerCase() == "female") {
+        query["gender"] = gender.toLowerCase();
+      }
+    }
+    if(sort){
+      if(sort == "asc"){
+          sortQuery["name.first"]= 1;
+      }else if(sort == "desc"){
+        sortQuery["name.first"] = -1;
+      }
+    }
+    // console.log(query);
+    let data = await UserModel.find(query).limit(10).skip(((Number(page)?Number(page):1)-1)*10).sort(sortQuery);
+    let tempdata = await UserModel.find(query);
+    let totalPages = Math.ceil(tempdata.length / 10);
     return { data, length: data.length, totalPages };
   } catch (error) {
-    return error;
+    return error
   }
 };
 module.exports = { addUsers, deleteUsers, getUsers };
